@@ -1,6 +1,6 @@
 CC     	= gcc
 EXEC   	= planeManager
-CFLAGS 	= -Wall -Werror -g -pthread
+CFLAGS 	= -Wall -g -pthread #-Werror 
 all   	: $(EXEC)
 
 

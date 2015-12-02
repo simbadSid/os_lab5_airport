@@ -3,6 +3,9 @@
 ################################################################################
 
 # Add inputs and outputs from these tool invocations to the build variables 
+O_SRCS += \
+../question4/planeManager.o 
+
 C_SRCS += \
 ../question4/planeManager.c 
 

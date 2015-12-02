@@ -24,18 +24,6 @@ typedef struct RUNWAY_HISTORY						// Structure used to share the accesses to a 
 } runwayHistory;
 
 // -------------------------------------
-// Question 3
-// -------------------------------------
-typedef struct WAITING_QUEUE
-{
-	int						head;					// Waiting queue indexes
-	int						tail;
-	pthread_cond_t			condVar;
-	int						queueSize;				// Max nbr thread which can access the CS
-}waitingQueue;
-
-
-// -------------------------------------
 // Question 4
 // -------------------------------------
 typedef struct PRIORITY_QUEUE
@@ -63,17 +51,7 @@ void					printAndRemoveRunwayList	(int nbrRunway, runwayHistory **runwayList);
 int						getFreeRunway				(char *busyRunway, int nbrRunway);
 
 // -------------------------------------
-// Question 3
-// -------------------------------------
-waitingQueue *			newWaitingQueue				(int queueSize);
-int 					appendToQueue				(waitingQueue *queue);
-char					isTurn						(waitingQueue *queue, int waiterId);
-void					leaveQueue					(waitingQueue *queue);
-void					destroyWaitingQueue			(waitingQueue *queue);
-
-
-// -------------------------------------
-// Question 4
+// Question 3, 4
 // -------------------------------------
 priorityWaitingQueue	*newPriorityWaitingQueue	(int queueSize);
 void					appendToPriorityQueue		(priorityWaitingQueue *queue, int threadID, int threadPrio);

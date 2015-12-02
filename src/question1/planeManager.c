@@ -24,7 +24,7 @@ runwayHistory		*history	= NULL;				// List of the planes which have landed
 
 void *land(void *arg)								// Function executed by each thread (plane)
 {
-	int				planeID	= (int) arg;
+	int				planeID	= (long) arg;
 	runwayHistory	*newCell= malloc(sizeof(runwayHistory));
 
 	newCell->id = planeID;
@@ -46,7 +46,7 @@ int main(int argc, char **argv)
 		if (nbrPlanes <= 0) nbrPlanes = NBR_PLANES;
 	}
 	else nbrPlanes = NBR_PLANES;
-	int i;
+	long i;
 
 	pthread_t tids[nbrPlanes];						// Initialize the thread id struct
 	pthread_mutex_init(&lock, NULL);				// Initialize the lock

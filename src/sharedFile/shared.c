@@ -40,37 +40,6 @@ int getFreeRunway(char *busyRunway, int nbrRunway)
 }
 
 // -------------------------------------
-// Question 3
-// -------------------------------------
-waitingQueue *newWaitingQueue(int queueSize)
-{
-	waitingQueue *res = malloc(sizeof(waitingQueue));
-	res->head		= 0;
-	res->tail		= 0;
-	res->queueSize	= queueSize;
-	pthread_cond_init(&(res->condVar), NULL);
-	return res;
-}
-int appendToQueue(waitingQueue *queue)
-{
-	queue->tail ++;
-	return queue->tail;
-}
-char isTurn(waitingQueue *queue, int waiterId)
-{
-	return ((waiterId-queue->head) <= queue->queueSize);
-}
-void leaveQueue(waitingQueue *queue)
-{
-	queue->head ++;
-}
-void destroyWaitingQueue(waitingQueue *queue)
-{
-	pthread_cond_destroy(&(queue->condVar));
-	free(queue);
-}
-
-// -------------------------------------
 // Question 4
 // -------------------------------------
 priorityWaitingQueue *newPriorityWaitingQueue(int queueSize)
@@ -122,7 +91,8 @@ void appendToPriorityQueue (priorityWaitingQueue *queue, int threadID, int threa
 }
 char isTurnPriorityQueue(priorityWaitingQueue *queue, int waiterId)
 {
-	return (queue->nbrThreadRunningInCS < queue->queueSize);
+	if (queue->nbrThreadRunningInCS == queue->queueSize) return 0;
+	return (queue->planePriorityQueue->threadId == waiterId);
 }
 void popPriorityQueue(priorityWaitingQueue *queue, int threadID)
 {
@@ -132,10 +102,19 @@ void popPriorityQueue(priorityWaitingQueue *queue, int threadID)
 	if (pq->threadId != threadID)
 	{
 		printf("\n**** Corrupted priorityWaitingQueue****\n");
+		printf("**** Expected plane           : %d\n", threadID);
+		printf("**** Found on the top of queue: %d\n", pq->threadId);
+		printf("**** Queue state: \n");
+		while (pq != NULL)
+		{
+			printf("\t PlaneID = %d,\t Priority = %d\n", pq->threadId, pq->threadPriority);
+			pq = pq->next;
+		}
 		exit(0);
 	}
 	free(pq);
 	queue->planePriorityQueue = pq1;
+	queue->nbrThreadRunningInCS ++;
 }
 void leavePriorityQueue(priorityWaitingQueue *queue)
 {

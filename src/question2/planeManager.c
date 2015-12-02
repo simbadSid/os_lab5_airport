@@ -10,57 +10,58 @@
 
 
 
+
 /*===================================================
  * Plane manager:
- * N runway, P planes (P > N).   The planes are landing in a FIFO order.
- * Synchronization method: mutex lock to synchronize the access to a waiting queue + condition variable
+ * N runway, P planes.
+ * Synchronization method: semaphore (+ mutex lock for synchronization inside the previous cs).
  * Parameters (non mandatory): <number of planes > 0> <number of runways > 0>
  ====================================================*/
 
 
 
-
+runwayHistory		**runwayList;					// List of the histories of the runways
 char				*busyRunway;					// Indicates whether a runway is busy or not
-waitingQueue		*queue;							// Waiting queue of the plains which want to land
+sem_t				semaphore;						// Allows at most N threads to access the runway history struct
 pthread_mutex_t		lock;							// Allows at most 1 thread to access the runway state
 int					nbrRunway;
 
 
 
 
+
+
 void *land(void *arg)								// Function executed by each thread (plane)
 {
-	int	planeID	= (int) arg, threadIDInQueue;
+	int	planeID	= (long) arg;
+	runwayHistory *newCell= malloc(sizeof(runwayHistory));
+	newCell->id = planeID;
 	int freeRunway;
 
-	pthread_mutex_lock(&lock);						// Add the thread id in the waiting queue (critical section)
-	printf("Plane %d tries to land\n", planeID);
-	threadIDInQueue = appendToQueue(queue);
+	sem_wait(&semaphore);							// Enter the critical section
 
-	while(!isTurn(queue, threadIDInQueue))			// Wait for my name to be on the top of the waiting queue
-	{
-		pthread_cond_wait(&(queue->condVar), &lock);
-	}
+	pthread_mutex_lock(&lock);						// Look for a free runway (in a critical section)
 	freeRunway = getFreeRunway(busyRunway, nbrRunway);
 	busyRunway[freeRunway] = 1;
-	printf("\t\t\t- Runway %d: plane %d start landing\n", freeRunway, planeID);
 	pthread_mutex_unlock(&lock);
 
-	usleep(400);
-	printf("\t\t\t\t\t\t\t\t- Runway %d: plane %d ends landing\n", freeRunway, planeID);
+	newCell->next			= runwayList[freeRunway];
+	runwayList[freeRunway]	= newCell;
+usleep(400);
 
-	pthread_mutex_lock(&lock);						// Remove the thread id from the waiting queue (critical section)
-	leaveQueue(queue);
+	pthread_mutex_lock(&lock);						// Free the runway (in a critical section)
 	busyRunway[freeRunway] = 0;
-	pthread_cond_broadcast(&(queue->condVar));
 	pthread_mutex_unlock(&lock);
 
+	sem_post(&semaphore);
 	return NULL;
 }
 
+
 int main(int argc, char **argv)
 {
-	int nbrPlanes, i;
+	int nbrPlanes;
+	long i;
 
 	if (argc > 1)									// Initialize the number of planes
 	{
@@ -74,20 +75,22 @@ int main(int argc, char **argv)
 		if (nbrRunway <= 0) nbrRunway = NBR_RUNWAY;
 	}
 	else nbrRunway = NBR_RUNWAY;
+	runwayList = malloc(nbrRunway * sizeof(runwayHistory));
 	busyRunway = malloc(nbrRunway * sizeof(char));
 	for (i=0; i<nbrRunway; i++)	busyRunway[i] = 0;
 
 	pthread_t tids[nbrPlanes];						// Initialize the thread id struct
 	pthread_mutex_init(&lock, NULL);				// Initialize the lock
-	queue = newWaitingQueue(nbrRunway);				// Initialize the waiting queue
-
+	sem_init(&semaphore, 0, nbrRunway);				// Initialize the semaphore
 	for (i=0; i<nbrPlanes; i++)						// Run the concurrent threads
 		pthread_create (&tids[i], NULL, land, (void*)i);
 	for (i=0; i<nbrPlanes; i++)						// Wait for all the threads to finish
 		pthread_join(tids[i], NULL);
 
+	printf("%d planes have tried to land:\n", nbrPlanes);
+	printAndRemoveRunwayList(nbrRunway, runwayList);// Check the concurrent execution's
 	free(busyRunway);
 	pthread_mutex_destroy(&lock);
-	destroyWaitingQueue(queue);
+	sem_destroy(&semaphore);
 	return 0;
 }

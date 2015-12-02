@@ -12,13 +12,9 @@
 
 /*===================================================
  * Plane manager:
- * N runway, P planes (P > N).
- * The planes have a priority.
- * The planes are landing in a FIFO order among a priority class.
- * TODO ************************************************************************
+ * N runway, P planes (P > N).   The planes are landing in a FIFO order.
  * Synchronization method: mutex lock to synchronize the access to a waiting queue + condition variable
- * TODO ************************************************************************
- * Parameters (non mandatory): <number of planes > 0> <number of runways > 0> <number of priorities > 0>
+ * Parameters (non mandatory): <number of planes > 0> <number of runways > 0>
  ====================================================*/
 
 
@@ -34,14 +30,12 @@ int						nbrRunway;
 
 void *land(void *arg)								// Function executed by each thread (plane)
 {
-	int *parameter	= (int*)arg;
-	int	planeID		= parameter[0];
-	int planePrio	= parameter[1];
+	int	planeID		= (long)arg;
 	int freeRunway;
 
 	pthread_mutex_lock(&lock);						// Add the thread id in the waiting queue (critical section)
-	printf("Plane %d with priority %d tries to land\n", planeID, planePrio);
-	appendToPriorityQueue(queue, planeID, planePrio);
+	printf("Plane %d tries to land\n", planeID);
+	appendToPriorityQueue(queue, planeID, 0);
 
 	while(!isTurnPriorityQueue(queue, planeID))		// Wait for my name to be on the top of the waiting queue
 	{
@@ -50,15 +44,15 @@ void *land(void *arg)								// Function executed by each thread (plane)
 	freeRunway = getFreeRunway(busyRunway, nbrRunway);
 	busyRunway[freeRunway] = 1;
 	popPriorityQueue(queue, planeID);				// Remove the top of the waiting priority queue (and test if it corresponds to planeID)
-	printf("\t\t\t- Runway %d: plane %d start landing\n", freeRunway, planeID);
+	printf("\t\t\t\t\t- Runway %d: plane %d start landing\n", freeRunway, planeID);
 	pthread_mutex_unlock(&lock);
 
 	usleep(400);
-	printf("\t\t\t\t\t\t\t\t- Runway %d: plane %d ends landing\n", freeRunway, planeID);
 
 	pthread_mutex_lock(&lock);						// Remove the thread id from the waiting queue (critical section)
-	leavePriorityQueue(queue);
+	printf("\t\t\t\t\t\t\t\t\t\t\t\t- Runway %d: plane %d ends landing\n", freeRunway, planeID);
 	busyRunway[freeRunway] = 0;
+	leavePriorityQueue(queue);
 	pthread_cond_broadcast(&(queue->condVar));
 	pthread_mutex_unlock(&lock);
 
@@ -67,7 +61,8 @@ void *land(void *arg)								// Function executed by each thread (plane)
 
 int main(int argc, char **argv)
 {
-	int nbrPlanes, nbrPriority, i, *parameter;
+	int nbrPlanes;
+	long i;
 
 	if (argc > 1)										// Initialize the number of planes
 	{
@@ -81,12 +76,6 @@ int main(int argc, char **argv)
 		if (nbrRunway <= 0) nbrRunway = NBR_RUNWAY;
 	}
 	else nbrRunway = NBR_RUNWAY;
-	if (argc > 3)										// Initialize the number of diff priorities for a plane
-	{
-		nbrPriority = atoi(argv[3]);
-		if (nbrPriority <= 0) nbrPriority = NBR_PRIORITY;
-	}
-	else nbrPriority = NBR_PRIORITY;
 	busyRunway = malloc(nbrRunway * sizeof(char));
 	for (i=0; i<nbrRunway; i++)	busyRunway[i] = 0;
 
@@ -96,10 +85,7 @@ int main(int argc, char **argv)
 
 	for (i=0; i<nbrPlanes; i++)							// Run the concurrent threads
 	{
-		parameter		= malloc(sizeof(int)*2);		//		Parameter: planeID, planePriority
-		*parameter		= i;
-		*(parameter+1)	= generatePriority(nbrPriority);//		Generates a priority: the biggest priority appears the most
-		pthread_create (&tids[i], NULL, land, (void*)parameter);
+		pthread_create (&tids[i], NULL, land, (void*)i);
 	}
 	for (i=0; i<nbrPlanes; i++)							// Wait for all the threads to finish
 		pthread_join(tids[i], NULL);
